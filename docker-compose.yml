@@ -1,0 +1,45 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      MONGODB_URI: mongodb://mongo:27017
+      MONGODB_DB: ascend
+      DEFAULT_USER_ID: 64b000000000000000000001
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongo
+    volumes:
+      - ./backend:/app
+    develop:
+      watch:
+        - path: ./backend
+          action: rebuild
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      ASCEND_API_URL: http://api:8000
+    ports:
+      - "8550:8550"
+    depends_on:
+      - api
+    volumes:
+      - ./frontend:/app
+    develop:
+      watch:
+        - path: ./frontend
+          action: rebuild
+
+volumes:
+  mongo_data:

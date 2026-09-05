@@ -1,0 +1,40 @@
+# Python
+**/uv.lock
+**/.venv/*
+**/__pycache__/*
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.Python
+**/build/*
+**/develop-eggs/*
+**/dist/*
+**/*.egg-info/*
+**/*.egg
+**/env/*
+**/venv/*
+
+# Flet
+**/.flet/*
+**/web/build/*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Docker
+.docker/
+docker-compose.override.yml
