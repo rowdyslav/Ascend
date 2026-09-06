@@ -6,4 +6,5 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 RUN uv sync
 COPY . .
 EXPOSE 8550
-CMD ["/opt/venv/bin/flet", "run", "--web", "--port", "8550", "--host", "0.0.0.0", "main.py"]
+ENV PATH=/opt/venv/bin:$PATH
+CMD ["flet", "run", "--web", "--port", "8550", "--host", "0.0.0.0", "main.py"]

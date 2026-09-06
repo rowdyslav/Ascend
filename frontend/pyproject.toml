@@ -5,6 +5,7 @@ description = "Ascend frontend application"
 requires-python = ">=3.11"
 dependencies = [
     "flet>=0.27,<1.0",
+    "flet-desktop>=0.27,<1.0",
     "httpx>=0.27,<1.0",
     "matplotlib>=3.9,<4.0",
 ]

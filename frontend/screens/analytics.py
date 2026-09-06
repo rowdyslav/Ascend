@@ -6,14 +6,14 @@ import flet as ft
 from api_client import ApiClient, ApiError
 from components.buttons import SecondaryButton
 from components.card import AppCard, section_title
-from components.charts import bar_chart, line_chart, pie_chart
+from components.charts import line_chart, pie_chart
 from components.chips import Chip
 from components.loading import hide_loading, show_loading
 from components.scaffold import MetricCard
 from components.sheets import show_bottom_sheet
 from theme import ACCENT, COLORS, ERROR, SUCCESS, TEXT_SECONDARY, WARNING
 
-TABS = ["Календарь", "Вес", "Тренировки", "Питание", "Протокол", "Анализы"]
+TABS = ["Календарь", "Вес", "Питание", "Протокол", "Анализы"]
 PERIODS = [(7, "7 дней"), (30, "30 дней"), (90, "90 дней")]
 
 
@@ -57,10 +57,8 @@ def analytics_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
                 elif active == 1:
                     weight_view(content)
                 elif active == 2:
-                    training_view(content)
-                elif active == 3:
                     nutrition_view(content)
-                elif active == 4:
+                elif active == 3:
                     protocol_view(content)
                 else:
                     lab_view(content)
@@ -158,30 +156,6 @@ def analytics_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
             content.controls.append(AppCard(line_chart({"Вес": [item["weight_kg"] for item in points], "MA7": [item["value"] for item in data["ma7"]], "MA30": [item["value"] for item in data["ma30"]]}, [str(item["date"])[5:] for item in points])))
         else:
             content.controls.append(AppCard(ft.Text("Добавьте измерения веса на экране «Сегодня».", color=TEXT_SECONDARY)))
-
-    def training_view(content: ft.ListView) -> None:
-        end = date.today()
-        data = api.get("/analytics/training", {"from": (end - timedelta(days=90)).isoformat(), "to": end.isoformat()})
-        values = {item["week"][5:]: item["tonnage"] for item in data["weekly_tonnage"]}
-        exercises = api.get("/exercises")
-        by_id = {item["id"]: item["name"] for item in exercises}
-        total_tonnage = sum(item["tonnage"] for item in data["weekly_tonnage"])
-        best = data["top_exercises"][0]["best_1rm"] if data["top_exercises"] else None
-        top_rows = [ft.Row([ft.Text(by_id.get(item["exercise_id"], item["exercise_id"]), expand=True), ft.Text(f"{item['best_1rm']:.1f} кг", color=ACCENT)]) for item in data["top_exercises"]]
-        content.controls.append(section_title("Тренировки", ft.Text(f"{data['workout_count']} сессий", color=ACCENT)))
-        content.controls.append(summary_row(
-            MetricCard("Сессий", str(data["workout_count"]), icon=ft.Icons.FITNESS_CENTER, color=ACCENT),
-            MetricCard("Тоннаж", f"{total_tonnage:.0f}", "кг", icon=ft.Icons.TRENDING_UP, color=ACCENT),
-            MetricCard("Лучший 1RM", f"{best:.1f}" if best else "—", "кг", icon=ft.Icons.STAR, color=ACCENT) if best else None,
-        ))
-        content.controls.append(AppCard(ft.Column([
-            ft.Text("Недельный тоннаж", weight=ft.FontWeight.W_600),
-            bar_chart(values) if values else ft.Text("Нет завершённых сетов", color=TEXT_SECONDARY),
-        ], spacing=10, tight=True)))
-        content.controls.append(AppCard(ft.Column([
-            ft.Text("Топ-5 упражнений по 1RM", weight=ft.FontWeight.W_600),
-            *([*top_rows] or [ft.Text("Нет данных", color=TEXT_SECONDARY)]),
-        ], spacing=10, tight=True)))
 
     def nutrition_view(content: ft.ListView) -> None:
         def period_buttons() -> ft.Control:

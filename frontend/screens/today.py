@@ -15,16 +15,6 @@ WEEKDAYS = ["Понедельник", "Вторник", "Среда", "Четв�
 BASE_GOALS = {"kcal": 2600, "protein_g": 180, "fat_g": 80, "carbs_g": 300, "fiber_g": 30, "water_ml": 2500}
 
 
-def plural_days(count: int) -> str:
-    if 11 <= count % 100 <= 14:
-        return "дней"
-    if count % 10 == 1:
-        return "день"
-    if 2 <= count % 10 <= 4:
-        return "дня"
-    return "дней"
-
-
 def goals_for(day_type: str) -> dict[str, float]:
     goals = dict(BASE_GOALS)
     if day_type == "rest":
@@ -51,21 +41,6 @@ def today_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
     day_type = day.get("day_type") or "training"
     goals = goals_for(day_type)
 
-    # Streak: consecutive days closed at 100%, walking backwards from today.
-    streak = 0
-    try:
-        closed_dates = set()
-        for month_offset in (0, 1):
-            anchor = (today.replace(day=1) - timedelta(days=month_offset * 28)).replace(day=1)
-            month_days = api.get("/analytics/calendar", {"month": anchor.strftime("%Y-%m")})
-            closed_dates.update(item["date"] for item in month_days if item.get("closed") and item.get("completion_pct", 0) >= 100)
-        cursor = today if today.isoformat() in closed_dates else today - timedelta(days=1)
-        while cursor.isoformat() in closed_dates:
-            streak += 1
-            cursor -= timedelta(days=1)
-    except ApiError:
-        streak = 0
-
     progress = CircularProgress(day["completion_pct"], size=80, stroke=8, gradient=True)
     closed_chip = Chip("День закрыт", SUCCESS, SUCCESS + "33") if day.get("closed") else None
     header = card(
@@ -80,7 +55,6 @@ def today_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
             ], horizontal_alignment=ft.CrossAxisAlignment.END, spacing=8, tight=True),
         ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
         *([closed_chip] if closed_chip else []),
-        ft.Text(f"🔥 Серия: {streak} {plural_days(streak)}" if streak else "🔥 Серия начнётся сегодня", color=ACCENT),
     )
     root.controls.append(header)
 
@@ -144,33 +118,6 @@ def today_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
             extras.append(ft.Text(f"{weight_delta:+.1f} кг", size=11, color=color))
         metric_tiles.append(ft.Container(content=ft.Column([ft.Text(label, color=TEXT_SECONDARY, size=12), ft.Text(shown, size=17, weight=ft.FontWeight.W_600), *extras], tight=True), padding=12, width=120, height=100, border_radius=12, bgcolor=COLORS["bg_tertiary"], on_click=lambda e, a=label, b=key, c=unit: show_metric_sheet(a, b, c), ink=True))
     root.controls.append(ft.Column([section_title("Метрики"), ft.Row(metric_tiles, scroll=ft.ScrollMode.AUTO)]))
-
-    workouts = data["workouts"]
-    workout = workouts[0] if workouts else None
-    if workout:
-        state = "Завершена" if workout["completed"] else ("Отдых" if workout["is_rest_day"] else "Запланирована")
-        try:
-            sets = api.get(f"/workouts/{workout['id']}/sets")
-            exercise_count = len({item["exercise_id"] for item in sets})
-        except ApiError:
-            exercise_count = 0
-
-        def rest_day(_: ft.ControlEvent) -> None:
-            try:
-                api.put(f"/workouts/{workout['id']}", {"is_rest_day": True})
-                message("Отмечен день отдыха")
-                navigate(0)
-            except ApiError as exc:
-                message(str(exc), True)
-
-        root.controls.append(card(
-            section_title("Тренировка", ft.Chip(label=ft.Text(state))),
-            ft.Text(workout["name"], size=20, weight=ft.FontWeight.W_600),
-            ft.Text(f"Упражнений: {exercise_count} · Тоннаж: {workout['total_tonnage']:.0f} кг", color=TEXT_SECONDARY),
-            ft.Row([ft.FilledButton("Начать", icon=ft.Icons.PLAY_ARROW, on_click=lambda _: navigate(1)), ft.OutlinedButton("Заполнить позже", on_click=lambda _: navigate(1)), ft.TextButton("День отдыха", on_click=rest_day)], scroll=ft.ScrollMode.AUTO),
-        ))
-    else:
-        root.controls.append(card(section_title("Тренировка"), ft.Text("Нет тренировки на сегодня", color=TEXT_SECONDARY), ft.FilledButton("Создать тренировку", on_click=lambda _: navigate(1))))
 
     nutrition = data["nutrition"]
     labels = [("Ккал", "kcal"), ("Белки", "protein_g"), ("Жиры", "fat_g"), ("Углеводы", "carbs_g"), ("Клетчатка", "fiber_g"), ("Вода", "water_ml")]

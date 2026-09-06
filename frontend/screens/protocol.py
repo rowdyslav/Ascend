@@ -47,11 +47,33 @@ def protocol_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
             view.controls.append(card(*rows))
 
         def select_zone(zone: str) -> None:
-            try:
-                logs = api.get(f"/protocol/sites/{zone}/history")
-                dialog = ft.AlertDialog(title=ft.Text(zone), content=ft.Column([ft.Text(f"{log['date']} {log['time'][:5]} · {log['actual_dose_value']} {log['actual_dose_unit']}") for log in logs] or [ft.Text("Нет записей")], tight=True), actions=[ft.TextButton("Закрыть", on_click=lambda _: page.pop_dialog())])
+            def open_sheet() -> None:
+                try:
+                    logs = api.get(f"/protocol/sites/{zone}/history")
+                except ApiError as exc:
+                    notify(str(exc), True)
+                    return
+                rows = [ft.Text(f"{log['date']} {log['time'][:5]} · {log['actual_dose_value']} {log['actual_dose_unit']}") for log in logs] or [ft.Text("Нет записей")]
+                dialog = ft.AlertDialog(
+                    title=ft.Text(zone),
+                    content=ft.Column(rows, tight=True, scroll=ft.ScrollMode.AUTO),
+                    actions=[
+                        ft.TextButton("Закрыть", on_click=lambda _: page.pop_dialog()),
+                        ft.FilledButton("Добавить инъекцию", icon=ft.Icons.ADD, on_click=lambda _: add_injection(zone)),
+                    ],
+                )
                 page.show_dialog(dialog)
-            except ApiError as exc: notify(str(exc), True)
+
+            def add_injection(zone: str) -> None:
+                injection = next((item for item in items if item["category"] == "injection"), None)
+                if injection is None:
+                    notify("Нет инъекционных препаратов", True)
+                    return
+                page.pop_dialog()
+                side = "left" if zone.endswith(" Л") else "right" if zone.endswith(" П") else None
+                log_form(injection, preset_site=zone, preset_side=side, after_save=open_sheet)
+
+            open_sheet()
         view.controls.append(card(
             section_title("Инъекции", ft.FilledButton("Авто-ротация", icon=ft.Icons.AUTORENEW, on_click=lambda _: notify("Предложенная зона: " + rotation["suggestion"]))),
             BodyMap(rotation["zones"], select_zone),
@@ -59,18 +81,22 @@ def protocol_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
         ))
         root.controls.append(view); page.update()
 
-    def log_form(item: dict) -> None:
+    def log_form(item: dict, preset_site: str | None = None, preset_side: str | None = None, after_save=None) -> None:
         actual = ft.TextField(label="Фактическая доза", value=str(item["planned_dose_value"]), keyboard_type=ft.KeyboardType.NUMBER)
         unit = ft.Dropdown(label="Единица", value=item["planned_dose_unit"], options=[ft.dropdown.Option(item["planned_dose_unit"]), ft.dropdown.Option("mg"), ft.dropdown.Option("ml"), ft.dropdown.Option("mcg"), ft.dropdown.Option("IU"), ft.dropdown.Option("capsule")])
         moment = ft.TextField(label="Время (HH:MM)", value=date.today().strftime("%H:%M"))
-        site = ft.Dropdown(label="Зона", value=item.get("default_site"), options=[ft.dropdown.Option(name) for name in ["дельта Л", "дельта П", "бицепс Л", "бицепс П", "квад Л", "квад П", "ягодица Л", "ягодица П", "живот", "бедро Л", "бедро П", "живот низ"]], visible=item["category"] == "injection")
-        side = ft.Dropdown(label="Сторона", options=[ft.dropdown.Option("left", "Левая"), ft.dropdown.Option("right", "Правая")], visible=item["category"] == "injection")
+        site = ft.Dropdown(label="Зона", value=preset_site if preset_site is not None else item.get("default_site"), options=[ft.dropdown.Option(name) for name in ["дельта Л", "дельта П", "бицепс Л", "бицепс П", "квад Л", "квад П", "ягодица Л", "ягодица П", "живот", "бедро Л", "бедро П", "живот низ"]], visible=item["category"] == "injection")
+        side = ft.Dropdown(label="Сторона", value=preset_side, options=[ft.dropdown.Option("left", "Левая"), ft.dropdown.Option("right", "Правая")], visible=item["category"] == "injection")
         reaction = ft.TextField(label="Реакция", visible=item["category"] == "injection")
         comment = ft.TextField(label="Комментарий", multiline=True)
         def submit(force: bool = False) -> None:
             try:
                 api.post(f"/protocol/items/{item['id']}/log", {"actual_dose_value": float(actual.value), "actual_dose_unit": unit.value, "time": moment.value + (":00" if len(moment.value) == 5 else ""), "site": site.value, "side": side.value, "reaction": reaction.value or None, "comment": comment.value or None, "force_duplicate": force})
-                page.pop_dialog(); notify("Приём сохранён"); draw()
+                page.pop_dialog(); notify("Приём сохранён")
+                if after_save:
+                    after_save()
+                else:
+                    draw()
             except (TypeError, ValueError, ApiError) as exc:
                 if "Уже отмечено" in str(exc) and not force:
                     duplicate = ft.AlertDialog(title=ft.Text("Повторный приём"), content=ft.Text(f"{exc}. Повторить?"), actions=[ft.TextButton("Отмена", on_click=lambda _: page.pop_dialog()), ft.FilledButton("Повторить", on_click=lambda _: (page.pop_dialog(), submit(True)))])
