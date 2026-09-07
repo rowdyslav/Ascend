@@ -3,6 +3,11 @@ from typing import Any
 
 import httpx
 
+try:
+    from api_config import API_URL
+except ImportError:
+    API_URL = os.getenv("ASCEND_API_URL", "http://localhost:8000")
+
 
 class ApiError(RuntimeError):
     pass
@@ -10,7 +15,7 @@ class ApiError(RuntimeError):
 
 class ApiClient:
     def __init__(self) -> None:
-        self.base_url = os.getenv("ASCEND_API_URL", "http://localhost:8000").rstrip("/")
+        self.base_url = API_URL.rstrip("/")
         self.client = httpx.Client(base_url=self.base_url, timeout=10)
 
     def request(self, method: str, path: str, **kwargs: Any) -> Any:

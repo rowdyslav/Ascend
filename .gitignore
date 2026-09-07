@@ -9,6 +9,7 @@
 **/build/*
 **/develop-eggs/*
 **/dist/*
+frontend/api_config.py
 **/*.egg-info/*
 **/*.egg
 **/env/*
