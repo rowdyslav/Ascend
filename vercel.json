@@ -1,6 +1,0 @@
-{
-  "installCommand": "python -m pip install --break-system-packages -r frontend/requirements.txt",
-  "buildCommand": "sh frontend/scripts/vercel-build.sh",
-  "outputDirectory": "frontend/dist",
-  "cleanUrls": true
-}

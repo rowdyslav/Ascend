@@ -2,6 +2,7 @@
 set -eu
 
 ASCEND_API_URL="${ASCEND_API_URL:-https://backend-five-swart-37.vercel.app}"
+BASE_URL="${BASE_URL:-/Ascend/}"
 
 cd "$(dirname "$0")/.."
 rm -rf build dist
@@ -25,4 +26,5 @@ FLET_BIN="$(python -c 'import sysconfig; print(sysconfig.get_path("scripts"))')/
   --app-name ASCEND \
   --app-short-name ASCEND \
   --app-description "Трекер здоровья, тренировок и протокола" \
+  --base-url "$BASE_URL" \
   --route-url-strategy hash

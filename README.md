@@ -62,19 +62,19 @@ flet run --web --port 8550 --host 0.0.0.0 main.py
 
 API фронтенда ищется в переменной `ASCEND_API_URL` (по умолчанию `http://localhost:8000`).
 
-## Деплой фронтенда на Vercel
+## Деплой фронтенда на GitHub Pages
 
-В репозитории уже есть `vercel.json`. При создании Vercel Project оставьте Root
-Directory равной корню репозитория и добавьте Environment Variable:
+После push в `main` workflow `.github/workflows/deploy-pages.yml` установит
+зависимости, соберёт Flet static web app и опубликует его на GitHub Pages.
+Адрес API встраивается в сборку и по умолчанию равен:
 
 ```text
-ASCEND_API_URL=https://backend-five-swart-37.vercel.app
+https://backend-five-swart-37.vercel.app
 ```
 
-После push Vercel установит зависимости, соберёт Flet static web app через
-`frontend/scripts/vercel-build.sh` и будет раздавать каталог `frontend/dist`.
-URL API встраивается в сборку. Если переменную не добавлять в Vercel, будет
-использован этот production URL по умолчанию.
+В настройках репозитория один раз выберите **Settings → Pages → Source →
+GitHub Actions**. После успешного workflow приложение будет доступно по адресу
+`https://rowdyslav.github.io/Ascend/`.
 
 ## Структура
 
