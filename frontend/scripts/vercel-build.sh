@@ -18,7 +18,8 @@ pathlib.Path("api_config.py").write_text(
 )
 PY
 
-flet publish main.py \
+FLET_BIN="$(python -c 'import sysconfig; print(sysconfig.get_path("scripts"))')/flet"
+"$FLET_BIN" publish main.py \
   --assets assets \
   --distpath dist \
   --app-name ASCEND \
