@@ -22,7 +22,7 @@ PY
 FLET_BIN="$(python -c 'import sysconfig; print(sysconfig.get_path("scripts"))')/flet"
 "$FLET_BIN" publish app/main.py \
   --assets assets \
-  --distpath dist \
+  --distpath ../dist \
   --app-name ASCEND \
   --app-short-name ASCEND \
   --app-description "Трекер здоровья, тренировок и протокола" \
