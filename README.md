@@ -64,17 +64,37 @@ API фронтенда ищется в переменной `ASCEND_API_URL` (п
 
 ## Деплой фронтенда на GitHub Pages
 
-После push в `main` workflow `.github/workflows/deploy-pages.yml` установит
-зависимости, соберёт Flet static web app и опубликует его на GitHub Pages.
-Адрес API встраивается в сборку и по умолчанию равен:
+Сборка статики выполняется скриптом `scripts/github-pages-build.sh`
+(вызывается из CI-воркфлоу `.github/workflows/deploy-pages.yml`).
 
-```text
-https://backend-five-swart-37.vercel.app
+Что делает скрипт:
+
+- собирает `flet publish` в статический бандл с `--base-url /Ascend/`
+  (репозиторий называется `Ascend`, поэтому base-url именно такой);
+- пакует пакет `app/` целиком (через тонкий entry-шим), чтобы импорты
+  `from app.* import ...` работали в Pyodide;
+- кладёт в бандл только web-рантайм зависимости (`flet`, `httpx`, `matplotlib`);
+- встраивает адрес API (`ASCEND_API_URL`, по умолчанию
+  `https://backend-five-swart-37.vercel.app`) в `app/api_config.py`;
+- кладёт результат в `frontend/dist/`.
+
+### Локальная сборка
+
+```bash
+cd frontend
+# нужен venv с python и flet в PATH (см. «Запуск без Docker»)
+./build.sh
 ```
 
-В настройках репозитория один раз выберите **Settings → Pages → Source →
-GitHub Actions**. После успешного workflow приложение будет доступно по адресу
-`https://rowdyslav.github.io/Ascend/`.
+Результат — в `frontend/dist/`. Проверить локально можно, раздав папку
+любым статическим сервером из каталога `dist/` (важно: с base-path `/Ascend/`).
+
+### Автодеплой
+
+После push в `main` workflow установит зависимости, соберёт бандл и
+опубликует его на GitHub Pages. В настройках репозитория один раз выберите
+**Settings → Pages → Source → GitHub Actions**. После успешного workflow
+приложение доступно по адресу `https://rowdyslav.github.io/Ascend/`.
 
 ## Структура
 
@@ -94,11 +114,16 @@ ascend/
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
-│   ├── main.py                  # Flet entry + bottom navigation
-│   ├── theme.py                 # graphite #14161A + teal #2DD4BF + purple #A78BFA
-│   ├── api_client.py            # httpx wrapper
-│   ├── components/              # bottom_nav, circular_progress, card, body_map, charts
-│   ├── screens/                 # today, workouts, nutrition, protocol, analytics
+│   ├── app/
+│   │   ├── main.py              # Flet entry + bottom navigation
+│   │   ├── theme.py             # graphite #14161A + teal #2DD4BF + purple #A78BFA
+│   │   ├── api_client.py        # httpx wrapper (+ api_config.py — встраивается при сборке)
+│   │   ├── components/          # bottom_nav, circular_progress, card, body_map, charts
+│   │   ├── screens/             # today, workouts, nutrition, protocol, analytics
+│   │   └── utils/               # async_loader, constants, feedback, logger
+│   ├── assets/                  # PWA-ассеты: index.html, manifest.json, icons/
+│   ├── scripts/                 # github-pages-build.sh (сборка для Pages)
+│   ├── build.sh                 # локальная сборка статики (обёртка над скриптом)
 │   └── requirements.txt
 └── README.md
 ```
