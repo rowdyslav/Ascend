@@ -1,14 +1,6 @@
 import flet as ft
 
-from theme import COLORS, RADIUS, SURFACE
-
-
-def card(*controls: ft.Control, padding: int = 16, on_click=None, color: str = SURFACE) -> ft.Container:
-    return ft.Container(
-        content=ft.Column(list(controls), spacing=10, tight=True), padding=padding,
-        border_radius=RADIUS, bgcolor=color, on_click=on_click,
-        ink=on_click is not None,
-    )
+from app.theme import COLORS, RADIUS
 
 
 def section_title(title: str, action: ft.Control | None = None) -> ft.Row:

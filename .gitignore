@@ -1,5 +1,4 @@
 # Python
-**/uv.lock
 **/.venv/*
 **/__pycache__/*
 **/*.pyc

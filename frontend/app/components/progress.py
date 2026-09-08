@@ -11,7 +11,7 @@ over_color=ACCENT so a completed bar stays positive.
 
 import flet as ft
 
-from theme import ACCENT, COLORS, ERROR
+from app.theme import ACCENT, COLORS, ERROR
 
 
 def ProgressBar(value: float, max_value: float = 100, color: str = ACCENT,

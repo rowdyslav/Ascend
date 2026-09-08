@@ -2,7 +2,7 @@
 
 import flet as ft
 
-from theme import ACCENT, BORDER, COLORS, TEXT, TEXT_SECONDARY, TOUCH_TARGET
+from app.theme import ACCENT, BORDER, COLORS, TEXT, TEXT_SECONDARY, TOUCH_TARGET
 
 
 def AppTextField(label: str, value: str = "", keyboard_type=None, hint: str = "",

@@ -8,7 +8,7 @@ Flet on iPhone standalone PWA.
 
 import flet as ft
 
-from theme import COLORS, RADII, TEXT_DISABLED
+from app.theme import COLORS, RADII, TEXT_DISABLED
 
 
 def show_bottom_sheet(page: ft.Page, content: ft.Control, is_dismissible: bool = True) -> None:

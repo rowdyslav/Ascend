@@ -1,22 +1,21 @@
 import asyncio
 from datetime import date
+from typing import Callable
 
 import flet as ft
 
-from api_client import ApiClient, ApiError
-from components.buttons import IconButton as AppIconButton
-from components.buttons import PrimaryButton
-from components.card import AppCard, section_title
-from components.inputs import AppTextField
-from components.loading import hide_loading, show_loading
-from theme import COLORS, ERROR, SUCCESS, TEXT_SECONDARY
+from app.api_client import ApiClient, ApiError
+from app.components.buttons import IconButton as AppIconButton
+from app.components.buttons import PrimaryButton
+from app.components.card import AppCard, section_title
+from app.components.inputs import AppTextField
+from app.components.loading import hide_loading, show_loading
+from app.theme import COLORS, ERROR, TEXT_SECONDARY
+from app.utils.feedback import show_snack
 
 
-def workouts_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
+def workouts_screen(page: ft.Page, api: ApiClient, navigate: Callable[[int], None]) -> ft.Control:
     root = ft.Column(expand=True)
-
-    def notify(text: str, failed: bool = False) -> None:
-        page.show_dialog(ft.SnackBar(ft.Text(text), bgcolor=ERROR if failed else SUCCESS))
 
     def draw() -> None:
         overlay = show_loading(page, "Загрузка данных...")
@@ -36,7 +35,7 @@ def workouts_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
                         api.post("/workouts", {"date": today, "name": "Тренировка"})
                         draw()
                     except ApiError as exc:
-                        notify(str(exc), True)
+                        show_snack(page, str(exc), True)
 
                 return [ft.ListView(expand=True, padding=16, spacing=12, controls=[
                     AppCard(ft.Column([
@@ -111,17 +110,16 @@ def workouts_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
                     "rir": int(rir.value) if rir.value else None, "rest_sec": int(rest.value) if rest.value else None,
                 }
                 api.post(f"/workouts/{workout['id']}/sets", payload)
-                notify("Сет сохранён")
+                show_snack(page, "Сет сохранён")
                 draw()
             except (TypeError, ValueError, ApiError) as exc:
-                notify(str(exc), True)
+                show_snack(page, str(exc), True)
 
         def toggle_expand(exercise_id: str) -> None:
             expanded[exercise_id] = not expanded.get(exercise_id, True)
             draw()
 
-        exercise_blocks = []
-        for exercise_id in grouped:
+        def _build_exercise_block(exercise_id: str) -> ft.Container:
             items = grouped[exercise_id]
             name = exercise_by_id(exercise_id)["name"]
             previous = last_session_text(exercise_id, workout["id"]) or "Прошлый: нет данных"
@@ -145,10 +143,12 @@ def workouts_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
                         ft.Text(f"Сет {item['set_number']}", width=52, color=TEXT_SECONDARY, size=12),
                         ft.Text(f"{item['weight_kg']:.0f} кг × {item['reps']}", expand=True),
                     ]), padding=12))
-            exercise_blocks.append(ft.Container(
+            return ft.Container(
                 content=ft.Column(group_controls, spacing=8, tight=True),
                 padding=12, border_radius=12, bgcolor=COLORS["bg_tertiary"],
-            ))
+            )
+
+        exercise_blocks = [_build_exercise_block(exercise_id) for exercise_id in grouped]
 
         return AppCard(ft.Column([
             section_title(workout["name"]),

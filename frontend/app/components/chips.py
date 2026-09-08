@@ -2,7 +2,7 @@
 
 import flet as ft
 
-from theme import ACCENT
+from app.theme import ACCENT
 
 
 def Chip(text: str, color: str = ACCENT, bg: str | None = None) -> ft.Container:

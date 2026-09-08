@@ -2,6 +2,7 @@ from datetime import date, datetime
 from typing import Optional
 
 from beanie import Document, PydanticObjectId
+from pydantic import Field
 from pymongo import IndexModel, ASCENDING
 
 
@@ -12,7 +13,7 @@ class Day(Document):
     completion_pct: float = 0.0
     closed: bool = False
     close_reason: Optional[str] = None
-    updated_at: datetime = datetime.utcnow()
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:
         name = "days"

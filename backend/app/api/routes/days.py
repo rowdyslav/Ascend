@@ -7,6 +7,7 @@ from app.schemas import DayCloseIn
 from app.services.common import default_user_id, dto
 from app.services.days import get_or_create_day, refresh_completion
 from app.services.nutrition import add_nutrients
+from app.services.protocol import item_is_due
 
 router = APIRouter(prefix="/days", tags=["days"])
 
@@ -17,11 +18,10 @@ async def day_view(day_date: date) -> dict:
     metric = await BodyMetric.find_one(BodyMetric.user_id == user_id, BodyMetric.date == day_date)
     workouts = await Workout.find(Workout.user_id == user_id, Workout.date == day_date).to_list()
     meals = await Meal.find(Meal.user_id == user_id, Meal.date == day_date).to_list()
-    entries = []
-    for meal in meals:
-        entries.extend(await FoodEntry.find(FoodEntry.meal_id == meal.id).to_list())
+    meal_ids = [meal.id for meal in meals]
+    entries = await FoodEntry.find({"meal_id": {"$in": meal_ids}}).to_list() if meal_ids else []
     required = await ProtocolItem.find(ProtocolItem.user_id == user_id, ProtocolItem.archived == False).to_list()
-    required = [i for i in required if i.is_required and i.start_date <= day_date and (not i.end_date or i.end_date >= day_date) and (not i.weekdays or day_date.isoweekday() in i.weekdays)]
+    required = [i for i in required if i.is_required and item_is_due(i, day_date)]
     logs = await DoseLog.find(DoseLog.user_id == user_id, DoseLog.date == day_date).to_list()
     return {
         "day": dto(day), "metric": dto(metric) if metric else None,

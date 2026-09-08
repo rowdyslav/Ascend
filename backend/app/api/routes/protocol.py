@@ -1,4 +1,5 @@
-from datetime import date, datetime, time, timedelta
+import logging
+from datetime import date, datetime
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -6,12 +7,10 @@ from app.models import DoseLog, ProtocolItem
 from app.schemas import DoseLogIn, ProtocolItemIn, ProtocolItemUpdate
 from app.services.common import default_user_id, dto, get_document
 from app.services.days import refresh_completion
+from app.services.protocol import item_is_due
 
 router = APIRouter(prefix="/protocol", tags=["protocol"])
-
-
-def item_due(item: ProtocolItem, for_date: date) -> bool:
-    return item.start_date <= for_date and (item.end_date is None or item.end_date >= for_date) and (not item.weekdays or for_date.isoweekday() in item.weekdays)
+logger = logging.getLogger("ascend.protocol")
 
 
 @router.get("/items")
@@ -40,7 +39,7 @@ async def update_item(item_id: str, payload: ProtocolItemUpdate) -> dict:
 async def schedule(item_id: str, day_date: date = Query(alias="date")) -> dict:
     item = await get_document(ProtocolItem, item_id)
     logs = await DoseLog.find(DoseLog.item_id == item.id, DoseLog.date == day_date).sort("+time").to_list()
-    return {"item": dto(item), "date": day_date, "due": item_due(item, day_date), "scheduled_times": item.schedule_times, "logs": [dto(log) for log in logs]}
+    return {"item": dto(item), "date": day_date, "due": item_is_due(item, day_date), "scheduled_times": item.schedule_times, "logs": [dto(log) for log in logs]}
 
 
 @router.post("/items/{item_id}/log")
@@ -63,8 +62,14 @@ async def log_dose(item_id: str, payload: DoseLogIn) -> dict:
     )
     await log.insert()
     if item.stock_remaining is not None and payload.status == "taken":
-        item.stock_remaining = max(0, item.stock_remaining - log.actual_dose_value)
-        await item.save()
+        if log.actual_dose_unit == item.planned_dose_unit:
+            item.stock_remaining = max(0, item.stock_remaining - log.actual_dose_value)
+            await item.save()
+        else:
+            logger.warning(
+                "Stock not decremented for %s: dose unit %s != planned unit %s",
+                item.name, log.actual_dose_unit, item.planned_dose_unit,
+            )
     await refresh_completion(item.user_id, logged_date)
     return dto(log)
 

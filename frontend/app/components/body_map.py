@@ -3,7 +3,7 @@ from typing import Callable
 
 import flet as ft
 
-from theme import MUTED, SUCCESS, TEXT_SECONDARY, WARNING
+from app.theme import MUTED, SUCCESS, TEXT, TEXT_SECONDARY, WARNING
 
 ZONES = ["дельта Л", "дельта П", "бицепс Л", "бицепс П", "квад Л", "квад П", "ягодица Л", "ягодица П", "живот", "бедро Л", "бедро П", "живот низ"]
 
@@ -23,7 +23,7 @@ class BodyMap(ft.Column):
                 subtitle = f"{last} · {age} дн."
             tiles.append(ft.Container(
                 content=ft.Column([
-                    ft.Text(zone, size=12, text_align=ft.TextAlign.CENTER, color="#FFFFFF"),
+                    ft.Text(zone, size=12, text_align=ft.TextAlign.CENTER, color=TEXT),
                     ft.Text(subtitle, size=10, text_align=ft.TextAlign.CENTER, color=TEXT_SECONDARY),
                 ], tight=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 bgcolor=color + "33", border=ft.Border.all(1, color), border_radius=12, padding=10, width=112,

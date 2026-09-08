@@ -31,4 +31,5 @@ dist/
 Thumbs.db
 
 # Development
+scripts/
 *.log

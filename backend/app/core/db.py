@@ -9,17 +9,25 @@ from app.core.config import get_settings
 from app.models import ALL_MODELS, User
 from app.services.seed import seed_database
 
-# Beanie 1.x cannot encode datetime.time fields (its encoder knows date and
-# timedelta but not time). Teach it to store times as "HH:MM:SS" strings;
-# Pydantic coerces them back into time objects when documents are read.
-DEFAULT_CUSTOM_ENCODERS[_datetime.time] = lambda value: value.strftime("%H:%M:%S")
-
 _client: AsyncIOMotorClient | None = None
+
+
+def configure_encoders() -> None:
+    """Teach Beanie to serialize `datetime.time` fields.
+
+    Beanie 1.x knows `date` and `timedelta` but not `time`, so we store times as
+    "HH:MM:SS" strings; Pydantic coerces them back into `time` on read.
+
+    WARNING: this mutates a beanie-internal dict (DEFAULT_CUSTOM_ENCODERS).
+    On every beanie upgrade, verify that time fields still round-trip correctly.
+    """
+    DEFAULT_CUSTOM_ENCODERS[_datetime.time] = lambda value: value.strftime("%H:%M:%S")
 
 
 async def init_db() -> None:
     global _client
     settings = get_settings()
+    configure_encoders()
     _client = AsyncIOMotorClient(settings.mongodb_uri, serverSelectionTimeoutMS=3000)
     # Compose can need a few seconds before Mongo begins accepting connections.
     for attempt in range(20):

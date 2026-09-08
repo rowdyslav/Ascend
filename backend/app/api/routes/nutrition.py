@@ -29,9 +29,14 @@ async def create_food(payload: FoodIn) -> dict:
 async def list_meals(day_date: date = Query(alias="date")) -> list[dict]:
     user_id = await default_user_id()
     meals = await Meal.find(Meal.user_id == user_id, Meal.date == day_date).sort("+meal_type").to_list()
+    meal_ids = [meal.id for meal in meals]
+    entries_by_meal: dict = {}
+    if meal_ids:
+        for entry in await FoodEntry.find({"meal_id": {"$in": meal_ids}}).to_list():
+            entries_by_meal.setdefault(entry.meal_id, []).append(entry)
     response = []
     for meal in meals:
-        entries = await FoodEntry.find(FoodEntry.meal_id == meal.id).to_list()
+        entries = entries_by_meal.get(meal.id, [])
         response.append({**dto(meal), "entry_count": len(entries), "nutrients": add_nutrients([entry.nutrients for entry in entries]).model_dump()})
     return response
 
@@ -66,18 +71,30 @@ async def list_entries(meal_id: str) -> list[dict]:
     return [{**dto(entry), "food": dto(foods[entry.food_id]) if entry.food_id in foods else None} for entry in entries]
 
 
-@router.get("/nutrition/daily-summary")
-async def daily_summary(day_date: date = Query(alias="date")) -> dict:
+@router.get("/nutrition/daily-diary")
+async def daily_diary(day_date: date = Query(alias="date")) -> dict:
+    """One aggregated call: day totals/goals + meals with their entries embedded."""
     user_id = await default_user_id()
-    meals = await Meal.find(Meal.user_id == user_id, Meal.date == day_date).to_list()
-    entries = []
+    meals = await Meal.find(Meal.user_id == user_id, Meal.date == day_date).sort("+meal_type").to_list()
+    meal_ids = [meal.id for meal in meals]
+    all_entries = await FoodEntry.find({"meal_id": {"$in": meal_ids}}).to_list() if meal_ids else []
+    food_ids = {entry.food_id for entry in all_entries}
+    foods = {food.id: food for food in await Food.find({"_id": {"$in": list(food_ids)}}).to_list()} if food_ids else {}
+    entries_by_meal: dict = {}
+    for entry in all_entries:
+        entries_by_meal.setdefault(entry.meal_id, []).append(entry)
+    meals_out = []
     for meal in meals:
-        entries.extend(await FoodEntry.find(FoodEntry.meal_id == meal.id).to_list())
-    totals = add_nutrients([entry.nutrients for entry in entries])
+        entries = entries_by_meal.get(meal.id, [])
+        meals_out.append({
+            **dto(meal),
+            "entries": [{**dto(entry), "food": dto(foods[entry.food_id]) if entry.food_id in foods else None} for entry in entries],
+        })
+    totals = add_nutrients([entry.nutrients for entry in all_entries])
     goals = get_settings().nutrition_goals
     remaining = {key: round(max(0, value - (getattr(totals, key) or 0)), 2) for key, value in goals.items() if hasattr(totals, key)}
     percent = {key: round(((getattr(totals, key) or 0) / value) * 100, 1) for key, value in goals.items() if value and hasattr(totals, key)}
-    return {"date": day_date, "totals": totals.model_dump(), "goals": goals, "remaining": remaining, "percent": percent}
+    return {"date": day_date, "totals": totals.model_dump(), "goals": goals, "remaining": remaining, "percent": percent, "meals": meals_out}
 
 
 @router.delete("/entries/{entry_id}")

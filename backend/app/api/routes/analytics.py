@@ -1,13 +1,13 @@
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from app.core.config import get_settings
-from app.models import BodyMetric, Day, DoseLog, FoodEntry, LabTest, Meal, ProtocolItem, Workout, WorkoutSet
+from app.models import BodyMetric, Day, DoseLog, FoodEntry, LabTest, Meal, ProtocolItem
 from app.services.common import default_user_id, dto
 from app.services.nutrition import add_nutrients
-from app.services.workouts import epley_1rm
+from app.services.protocol import expected_doses_for
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -15,9 +15,11 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 @router.get("/calendar")
 async def calendar(month: str = Query(description="YYYY-MM")) -> list[dict]:
     user_id = await default_user_id()
-    year, month_num = (int(value) for value in month.split("-"))
-    first = date(year, month_num, 1)
-    next_month = date(year + (month_num == 12), 1 if month_num == 12 else month_num + 1, 1)
+    try:
+        first = date.fromisoformat(month + "-01")
+    except ValueError:
+        raise HTTPException(status_code=422, detail="month must be in YYYY-MM format")
+    next_month = date(first.year + (first.month == 12), 1 if first.month == 12 else first.month + 1, 1)
     days = await Day.find({"user_id": user_id, "date": {"$gte": first, "$lt": next_month}}).to_list()
     labs = await LabTest.find({"user_id": user_id, "date": {"$gte": first, "$lt": next_month}}).to_list()
     lab_dates = {item.date for item in labs}
@@ -47,28 +49,15 @@ async def weight(from_: date = Query(alias="from"), to: date = Query()) -> dict:
     return {"points": points, "ma7": average(7), "ma30": average(30), "delta": delta}
 
 
-@router.get("/training")
-async def training(from_: date = Query(alias="from"), to: date = Query()) -> dict:
-    user_id = await default_user_id()
-    workouts = await Workout.find({"user_id": user_id, "date": {"$gte": from_, "$lte": to}}).to_list()
-    weekly: dict[str, float] = defaultdict(float)
-    for workout in workouts:
-        monday = workout.date - timedelta(days=workout.date.weekday())
-        weekly[monday.isoformat()] += workout.total_tonnage
-    sets = await WorkoutSet.find({"workout_id": {"$in": [workout.id for workout in workouts]}}).to_list() if workouts else []
-    growth: dict[str, float] = defaultdict(float)
-    for item in sets:
-        growth[str(item.exercise_id)] = max(growth[str(item.exercise_id)], epley_1rm(item.weight_kg, item.reps))
-    return {"weekly_tonnage": [{"week": week, "tonnage": round(total, 2)} for week, total in sorted(weekly.items())], "workout_count": len(workouts), "top_exercises": [{"exercise_id": exercise, "best_1rm": one_rm} for exercise, one_rm in sorted(growth.items(), key=lambda value: value[1], reverse=True)[:5]]}
-
-
 @router.get("/nutrition")
 async def nutrition(from_: date = Query(alias="from"), to: date = Query()) -> dict:
     user_id = await default_user_id()
     meals = await Meal.find({"user_id": user_id, "date": {"$gte": from_, "$lte": to}}).to_list()
+    date_by_meal = {meal.id: meal.date for meal in meals}
+    entries = await FoodEntry.find({"meal_id": {"$in": list(date_by_meal)}}).to_list() if date_by_meal else []
     daily: dict[date, list] = defaultdict(list)
-    for meal in meals:
-        daily[meal.date].extend(await FoodEntry.find(FoodEntry.meal_id == meal.id).to_list())
+    for entry in entries:
+        daily[date_by_meal[entry.meal_id]].append(entry)
     summaries = [{"date": day_date, **add_nutrients([entry.nutrients for entry in entries]).model_dump()} for day_date, entries in sorted(daily.items())]
     keys = ["kcal", "protein_g", "fat_g", "carbs_g"]
     averages = {key: round(sum(row[key] or 0 for row in summaries) / len(summaries), 2) if summaries else 0 for key in keys}
@@ -81,12 +70,11 @@ async def protocol(from_: date = Query(alias="from"), to: date = Query()) -> dic
     user_id = await default_user_id()
     items = await ProtocolItem.find(ProtocolItem.user_id == user_id, ProtocolItem.archived == False).to_list()
     logs = await DoseLog.find({"user_id": user_id, "date": {"$gte": from_, "$lte": to}}).to_list()
-    days = max((to - from_).days + 1, 1)
-    expected = sum(1 for item in items for offset in range(days) if item.is_required and item.start_date <= from_ + timedelta(days=offset) and (not item.end_date or item.end_date >= from_ + timedelta(days=offset)) and (not item.weekdays or (from_ + timedelta(days=offset)).isoweekday() in item.weekdays))
+    expected = sum(expected_doses_for(item, from_, to) for item in items)
     taken = len({(log.item_id, log.date) for log in logs if log.status == "taken"})
     misses = []
     for item in items:
-        expected_item = sum(1 for offset in range(days) if item.is_required and (not item.weekdays or (from_ + timedelta(days=offset)).isoweekday() in item.weekdays))
+        expected_item = expected_doses_for(item, from_, to)
         actual = len({log.date for log in logs if log.item_id == item.id and log.status == "taken"})
         if expected_item > actual:
             misses.append({"item": item.name, "missed": expected_item - actual})

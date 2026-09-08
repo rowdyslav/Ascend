@@ -1,0 +1,1 @@
+"""ASCEND frontend application package."""

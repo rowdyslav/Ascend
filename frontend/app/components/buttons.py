@@ -11,17 +11,14 @@ import asyncio
 
 import flet as ft
 
-from theme import ACCENT, BORDER, COLORS, TEXT
+from app.theme import ACCENT, BORDER, COLORS, TEXT
 
 RADII_MD = 12  # buttons and inputs
 PRESS_OPACITY = 0.7
 HOVER_OPACITY = 0.85
 RESTORE_DELAY = 0.12
 
-# flet 0.86: RoundedRectangleBorder MUST take radius= as a keyword. A positional
-# value (e.g. RoundedRectangleBorder(12)) builds fine server-side but the web
-# client fails to lay the button out and paints the whole page grey (#b7b7b7)
-# once the button scrolls into view. Keep the keyword everywhere.
+# См. frontend/COMPAT.md: RoundedRectangleBorder radius keyword
 
 
 def _btn_shape() -> ft.RoundedRectangleBorder:

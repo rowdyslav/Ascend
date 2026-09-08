@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Wedge
 import flet as ft
 
-from theme import ACCENT, COLORS, PURPLE, SURFACE, TEXT
+from app.theme import ACCENT, COLORS, PURPLE, SURFACE, TEXT
 
 GRADIENT_COLORS = [ACCENT, PURPLE]  # teal -> purple
 

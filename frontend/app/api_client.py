@@ -3,8 +3,10 @@ from typing import Any
 
 import httpx
 
+from app.utils.logger import logger
+
 try:
-    from api_config import API_URL
+    from app.api_config import API_URL
 except ImportError:
     API_URL = os.getenv("ASCEND_API_URL", "http://localhost:8000")
 
@@ -21,13 +23,16 @@ class ApiClient:
     def request(self, method: str, path: str, **kwargs: Any) -> Any:
         try:
             response = self.client.request(method, path, **kwargs)
+            logger.info("API %s %s -> %s", method, path, response.status_code)
             if response.status_code >= 400:
                 detail = response.json().get("detail", response.text)
                 if isinstance(detail, dict):
                     detail = detail.get("message", str(detail))
+                logger.error("API %s %s failed (%s): %s", method, path, response.status_code, detail)
                 raise ApiError(str(detail))
             return response.json()
         except httpx.HTTPError as exc:
+            logger.error("API %s %s failed: %s", method, path, exc)
             raise ApiError(f"Нет соединения с API: {exc}") from exc
 
     def get(self, path: str, params: dict | None = None) -> Any:

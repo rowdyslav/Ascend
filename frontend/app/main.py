@@ -1,13 +1,13 @@
 import flet as ft
 
-from api_client import ApiClient
-from components.bottom_nav import bottom_nav
-from screens.analytics import analytics_screen
-from screens.nutrition import nutrition_screen
-from screens.protocol import protocol_screen
-from screens.today import today_screen
-from screens.workouts import workouts_screen
-from theme import apply_theme
+from app.api_client import ApiClient
+from app.components.bottom_nav import bottom_nav
+from app.screens.analytics import analytics_screen
+from app.screens.nutrition import nutrition_screen
+from app.screens.protocol import protocol_screen
+from app.screens.today import today_screen
+from app.screens.workouts import workouts_screen
+from app.theme import apply_theme
 
 SCREENS = [today_screen, workouts_screen, nutrition_screen, protocol_screen, analytics_screen]
 
@@ -28,8 +28,6 @@ def main(page: ft.Page) -> None:
         index = target
         body.content = SCREENS[target](page, api, navigate)
         nav_slot.content = bottom_nav(target, navigate)
-        body.update()
-        nav_slot.update()
         page.update()
 
     nav_slot.content = bottom_nav(index, navigate)

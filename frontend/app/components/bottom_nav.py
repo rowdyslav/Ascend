@@ -10,7 +10,7 @@ instead of a ControlEvent — main.py was updated accordingly.
 
 import flet as ft
 
-from theme import ACCENT, BG, BORDER, BOTTOM_NAV_CONTENT_HEIGHT, TEXT_SECONDARY
+from app.theme import ACCENT, BG, BORDER, BOTTOM_NAV_CONTENT_HEIGHT, TEXT_SECONDARY
 
 TABS = [
     (ft.Icons.HOME_OUTLINED, ft.Icons.HOME, "Сегодня"),

@@ -1,30 +1,30 @@
 import asyncio
 from datetime import date, timedelta
+from typing import Callable
 
 import flet as ft
 
-from api_client import ApiClient, ApiError
-from components.buttons import SecondaryButton
-from components.card import AppCard, section_title
-from components.charts import line_chart, pie_chart
-from components.chips import Chip
-from components.loading import hide_loading, show_loading
-from components.scaffold import MetricCard
-from components.sheets import show_bottom_sheet
-from theme import ACCENT, COLORS, ERROR, SUCCESS, TEXT_SECONDARY, WARNING
+from app.api_client import ApiClient, ApiError
+from app.components.buttons import SecondaryButton
+from app.components.card import AppCard, section_title
+from app.components.charts import line_chart, pie_chart
+from app.components.chips import Chip
+from app.components.loading import hide_loading, show_loading
+from app.components.scaffold import MetricCard
+from app.components.sheets import show_bottom_sheet
+from app.theme import ACCENT, COLORS, ERROR, MUTED, SUCCESS, TEXT_SECONDARY, WARNING
+from app.utils.feedback import show_snack
 
 TABS = ["Календарь", "Вес", "Питание", "Протокол", "Анализы"]
 PERIODS = [(7, "7 дней"), (30, "30 дней"), (90, "90 дней")]
 
 
-def analytics_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
+def analytics_screen(page: ft.Page, api: ApiClient, navigate: Callable[[int], None]) -> ft.Control:
     active = 0
-    calendar_month = date.today().replace(day=1)
+    today = date.today()
+    calendar_month = today.replace(day=1)
     nutrition_period = 30
     root = ft.Column(expand=True)
-
-    def notify(text: str, error: bool = False) -> None:
-        page.show_dialog(ft.SnackBar(ft.Text(text), bgcolor=ERROR if error else SUCCESS))
 
     def summary_row(*metrics: ft.Control | None) -> ft.Row:
         """Horizontal (scrollable) strip of MetricCards for key figures."""
@@ -92,7 +92,7 @@ def analytics_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
         for day_number in range(1, month_len + 1):
             current = date(first.year, first.month, day_number).isoformat()
             item = days.get(current)
-            color = item["color"] if item else "#374151"
+            color = item["color"] if item else MUTED
             cells.append(ft.Container(content=ft.Text(str(day_number), text_align=ft.TextAlign.CENTER), alignment=ft.Alignment.CENTER, width=43, height=43, bgcolor=color + "66", border=ft.Border.all(1, color), border_radius=10, on_click=lambda _, value=current: day_summary(value), ink=True))
 
         def shift(step: int) -> None:
@@ -118,7 +118,7 @@ def analytics_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
         try:
             item = api.get(f"/days/{day_value}")
         except ApiError as exc:
-            notify(str(exc), True)
+            show_snack(page, str(exc), True)
             return
         day = item["day"]
         uncompleted = item["uncompleted"]
@@ -145,7 +145,7 @@ def analytics_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
         show_bottom_sheet(page, sheet_content)
 
     def weight_view(content: ft.ListView) -> None:
-        end = date.today()
+        end = today
         start = end - timedelta(days=90)
         data = api.get("/analytics/weight", {"from": start.isoformat(), "to": end.isoformat()})
         points = data["points"]
@@ -160,7 +160,7 @@ def analytics_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
     def nutrition_view(content: ft.ListView) -> None:
         def period_buttons() -> ft.Control:
             return ft.Row([
-                # ВАЖНО (flet 0.86): selected — list, не set (msgpack).
+                # См. frontend/COMPAT.md: SegmentedButton.selected list
                 ft.SegmentedButton(
                     selected=[str(nutrition_period)],
                     segments=[ft.Segment(value=str(days), label=ft.Text(text)) for days, text in PERIODS],
@@ -169,7 +169,7 @@ def analytics_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
                 ),
             ])
 
-        end = date.today()
+        end = today
         data = api.get("/analytics/nutrition", {"from": (end - timedelta(days=nutrition_period - 1)).isoformat(), "to": end.isoformat()})
         averages = data["averages"]
         macros = [
@@ -197,7 +197,7 @@ def analytics_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
         draw()
 
     def protocol_view(content: ft.ListView) -> None:
-        end = date.today()
+        end = today
         data = api.get("/analytics/protocol", {"from": (end - timedelta(days=6)).isoformat(), "to": end.isoformat()})
         content.controls.append(section_title("Протокол"))
         content.controls.append(summary_row(MetricCard("Выполнение за неделю", f"{data['completion_pct']:.0f}", "%", icon=ft.Icons.CHECK_CIRCLE, color=ACCENT)))
@@ -259,7 +259,7 @@ def analytics_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
                 page.pop_dialog()
                 draw()
             except ApiError as exc:
-                notify(str(exc), True)
+                show_snack(page, str(exc), True)
 
         dialog = ft.AlertDialog(title=ft.Text("Новый анализ"), content=ft.Column([panel, laboratory], tight=True), actions=[ft.TextButton("Отмена", on_click=lambda _: page.pop_dialog()), ft.FilledButton("Создать", on_click=save)])
         page.show_dialog(dialog)
@@ -276,10 +276,10 @@ def analytics_screen(page: ft.Page, api: ApiClient, navigate) -> ft.Control:
             try:
                 api.post(f"/lab/tests/{test['id']}/markers", {"category": category.value or "прочее", "name": name.value, "value": float(value.value), "unit": unit.value, "ref_min": float(ref_min.value) if ref_min.value else None, "ref_max": float(ref_max.value) if ref_max.value else None})
                 page.pop_dialog()
-                notify("Маркер добавлен")
+                show_snack(page, "Маркер добавлен")
                 draw()
             except (TypeError, ValueError, ApiError) as exc:
-                notify(str(exc), True)
+                show_snack(page, str(exc), True)
 
         dialog = ft.AlertDialog(title=ft.Text(f"Маркер · {test.get('panel_name') or test['date']}"), content=ft.Column([name, value, unit, category, ref_min, ref_max], tight=True, scroll=ft.ScrollMode.AUTO), actions=[ft.TextButton("Отмена", on_click=lambda _: page.pop_dialog()), ft.FilledButton("Сохранить", on_click=save)])
         page.show_dialog(dialog)

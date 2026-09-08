@@ -11,7 +11,7 @@ so the network call runs off the loop while the overlay keeps spinning.
 
 import flet as ft
 
-from theme import ACCENT, TEXT_SECONDARY
+from app.theme import ACCENT, TEXT_SECONDARY
 
 
 class LoadingOverlay(ft.Container):
