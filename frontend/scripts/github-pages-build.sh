@@ -13,14 +13,14 @@ import json
 import pathlib
 import sys
 
-pathlib.Path("api_config.py").write_text(
+pathlib.Path("app/api_config.py").write_text(
     "API_URL = " + json.dumps(sys.argv[1]) + "\n",
     encoding="utf-8",
 )
 PY
 
 FLET_BIN="$(python -c 'import sysconfig; print(sysconfig.get_path("scripts"))')/flet"
-"$FLET_BIN" publish main.py \
+"$FLET_BIN" publish app/main.py \
   --assets assets \
   --distpath dist \
   --app-name ASCEND \

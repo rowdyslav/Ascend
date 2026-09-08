@@ -55,9 +55,9 @@ uvicorn app.main:app --reload --port 8000   # нужен MongoDB на localhost:
 cd frontend
 pip install -r requirements.txt
 pip install flet-cli flet-web   # нужны команде `flet run` в flet 0.8x
-flet run main.py            # десктоп-окно
+PYTHONPATH=. flet run app/main.py            # десктоп-окно (из каталога frontend/)
 # или в браузере:
-flet run --web --port 8550 --host 0.0.0.0 main.py
+PYTHONPATH=. flet run --web --port 8550 --host 0.0.0.0 app/main.py
 ```
 
 API фронтенда ищется в переменной `ASCEND_API_URL` (по умолчанию `http://localhost:8000`).

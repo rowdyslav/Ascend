@@ -37,11 +37,6 @@ services:
       - api
     volumes:
       - ./frontend:/app
-      - ./frontend/main.py:/app/main.py
-      - ./frontend/screens:/app/screens
-      - ./frontend/components:/app/components
-      - ./frontend/api_client.py:/app/api_client.py
-      - ./frontend/theme.py:/app/theme.py
       - ./frontend/assets:/app/assets
     develop:
       watch:
