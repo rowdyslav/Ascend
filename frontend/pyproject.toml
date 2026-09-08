@@ -7,6 +7,7 @@ dependencies = [
     "flet==0.86.5",
     "flet-cli==0.86.5",
     "flet-web==0.86.5",
+    "flet-desktop==0.86.5",
     "httpx>=0.28.1,<1.0",
     "matplotlib>=3.11.1,<4.0",
 ]

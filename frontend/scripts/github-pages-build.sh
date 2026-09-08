@@ -34,12 +34,15 @@ if __name__ == "__main__":
     ft.run(main)
 PY
 
-# Pinned runtime deps for Pyodide (must match the flet_web 0.86.5 runtime).
-# No flet-cli / flet-web here — those are build-time tools, not web runtime.
+# Pinned runtime deps for Pyodide. IMPORTANT: these MUST stay resolvable by
+# the Pyodide runtime bundled with flet 0.86.5 (currently pyodide 314.0.3),
+# which ships matplotlib 3.10.8 / numpy 2.4.3 — so matplotlib is NOT pinned to
+# the newer native version used by pyproject.toml. A too-new floor here makes
+# micropip fail at runtime → the app hangs on the loading spinner.
 cat > "$TMP_DIR/requirements.txt" <<'EOF'
 flet==0.86.5
 httpx>=0.28.1,<1.0
-matplotlib>=3.11.1,<4.0
+matplotlib>=3.9,<4.0
 EOF
 
 uv run --project . flet publish "$TMP_DIR/main.py" \
