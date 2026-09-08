@@ -1,8 +1,12 @@
 #!/bin/sh
 set -eu
 
-ASCEND_API_URL="${ASCEND_API_URL:-https://backend-five-swart-37.vercel.app}"
 BASE_URL="${BASE_URL:-/Ascend/}"
+# Strip the leading slash before passing to `flet publish`: MSYS (Git Bash on
+# Windows) rewrites a leading-slash argument like `/Ascend/` into a Windows
+# path, while `flet publish` normalizes the value itself (strips and re-adds
+# slashes), so `Ascend/` and `/Ascend/` produce the same `<base href>`.
+BASE_URL_ARG="${BASE_URL#/}"
 
 cd "$(dirname "$0")/.."
 rm -rf build dist
@@ -31,34 +35,20 @@ if __name__ == "__main__":
 PY
 
 # Pinned runtime deps for Pyodide (must match the flet_web 0.86.5 runtime).
-# No flet-cli / flet-desktop here — those are build/dev tools, not web runtime.
+# No flet-cli / flet-web here — those are build-time tools, not web runtime.
 cat > "$TMP_DIR/requirements.txt" <<'EOF'
 flet==0.86.5
-httpx>=0.27,<1.0
-matplotlib>=3.9,<4.0
+httpx>=0.28.1,<1.0
+matplotlib>=3.11.1,<4.0
 EOF
 
-# Embed the API URL into the staged package (same as before, but inside the
-# temp context so the repo stays clean).
-python - "$ASCEND_API_URL" "$TMP_DIR" <<'PY'
-import json
-import pathlib
-import sys
-
-pathlib.Path(sys.argv[2], "app", "api_config.py").write_text(
-    "API_URL = " + json.dumps(sys.argv[1]) + "\n",
-    encoding="utf-8",
-)
-PY
-
-FLET_BIN="$(python -c 'import sysconfig; print(sysconfig.get_path("scripts"))')/flet"
-"$FLET_BIN" publish "$TMP_DIR/main.py" \
+uv run --project . flet publish "$TMP_DIR/main.py" \
   --assets assets \
   --distpath "$(pwd)/dist" \
   --app-name ASCEND \
   --app-short-name ASCEND \
   --app-description "Трекер здоровья, тренировок и протокола" \
-  --base-url "$BASE_URL" \
+  --base-url "$BASE_URL_ARG" \
   --route-url-strategy hash
 
 echo "Static bundle ready in $(pwd)/dist"

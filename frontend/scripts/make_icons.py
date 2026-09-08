@@ -1,5 +1,8 @@
 """Generate ASCEND PWA icons (PNG) with matplotlib.
 
+One-off manual utility — run it ONLY when the logo changes, then commit the
+regenerated files from assets/. It is not part of any build pipeline.
+
 Run from the venv:  python scripts/make_icons.py
 Outputs: assets/favicon.png, assets/icons/*.png
 """

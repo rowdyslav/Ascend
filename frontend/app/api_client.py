@@ -5,10 +5,11 @@ import httpx
 
 from app.utils.logger import logger
 
-try:
-    from app.api_config import API_URL
-except ImportError:
-    API_URL = os.getenv("ASCEND_API_URL", "http://localhost:8000")
+# Static GitHub Pages build runs in the browser (Pyodide) where env vars don't
+# exist, so the production API URL is the default. Local dev overrides it:
+#   ASCEND_API_URL=http://localhost:8000 flet run --web app/main.py
+# Docker Compose sets http://api:8000 automatically.
+API_URL = os.getenv("ASCEND_API_URL", "https://backend-five-swart-37.vercel.app")
 
 
 class ApiError(RuntimeError):
